@@ -1,0 +1,286 @@
+
+/*****************************************************************************************************************
+	UNIVERSIDAD NACIONAL AUTONOMA DE MEXICO
+	FACULTAD DE ESTUDIOS SUPERIORES -ARAGON-
+
+	Computadoras y programacion.
+	(c) Ponga su nombre y numero de cuenta aqui.
+
+	Quiso decir: Programa principal de la aplicacion de la distancia de Levenstein.
+
+******************************************************************************************************************/
+
+
+#include "stdafx.h"
+#include <string.h>
+#include "corrector.h"
+#define DEPURAR 0 //Colocar un numero ! de 1 al mandarlo al evaluador
+
+
+
+void intercambiar(char* a, char* b) {
+	char temp[TAMTOKEN];
+	strcpy_s(temp, TAMTOKEN, a);
+	strcpy_s(a, TAMTOKEN, b);
+	strcpy_s(b, TAMTOKEN, temp);
+}
+
+
+
+
+
+//Burbujazo
+
+
+//Funciones publicas del proyecto
+/*****************************************************************************************************************
+	DICCIONARIO: Esta funcion crea el diccionario completo
+	char *	szNombre				:	Nombre del archivo de donde se sacaran las palabras del diccionario
+	char	szPalabras[][TAMTOKEN]	:	Arreglo con las palabras completas del diccionario
+	int		iEstadisticas[]			:	Arreglo con el numero de veces que aparecen las palabras en el diccionario
+	int &	iNumElementos			:	Numero de elementos en el diccionario
+******************************************************************************************************************/
+void Diccionario(char* szNombre, char szPalabras[][TAMTOKEN], int iEstadisticas[], int& iNumElementos) {
+	FILE* fpDicc;
+	char palabraDetectada[TAMTOKEN];
+	iNumElementos = 0;
+
+	fopen_s(&fpDicc, szNombre, "r");
+	if (fpDicc != NULL) {
+		while (fscanf(fpDicc, "%s", palabraDetectada) == 1)
+		{
+			// Eliminar signos de puntuación y convertir a minúsculas
+			size_t len = strlen(palabraDetectada);
+			size_t j = 0; // Índice para la palabra filtrada sin signos
+			for (size_t i = 0; i < len; i++)
+			{
+				// Mantener solo los caracteres alfabéticos y convertir a minúsculas
+				if ((palabraDetectada[i] >= 'a' && palabraDetectada[i] <= 'z') || (palabraDetectada[i] >= 'A' && palabraDetectada[i] <= 'Z'))
+				{
+					// Convertir a minúsculas y almacenar en la misma cadena
+					palabraDetectada[j++] = towlower(palabraDetectada[i]);
+				}
+			}
+			palabraDetectada[j] = '\0'; // Añadir terminador nulo
+
+			// Verificar si la palabra ya está en el arreglo szPalabras
+			int indice = -1;
+			for (int i = 0; i < iNumElementos; i++) {
+				if (strcmp(szPalabras[i], palabraDetectada) == 0)
+				{
+					indice = i;
+					break;
+				}
+			}
+
+			// Si la palabra ya existe, incrementar el contador de estadísticas
+			if (indice != -1)
+			{
+				iEstadisticas[indice]++;
+			}
+			else
+			{
+				// Agregar la nueva palabra al arreglo
+				strcpy_s(szPalabras[iNumElementos], TAMTOKEN, palabraDetectada);
+				iEstadisticas[iNumElementos] = 1;
+				iNumElementos++;
+			}
+		}
+
+		fclose(fpDicc);
+
+		// Ordenar szPalabras por orden alfabético usando el método de la burbuja
+		for (int i = 0; i < iNumElementos - 1; i++)
+		{
+			for (int j = 0; j < iNumElementos - i - 1; j++)
+			{
+				if (strcmp(szPalabras[j], szPalabras[j + 1]) > 0)
+				{
+					intercambiar(szPalabras[j], szPalabras[j + 1]);
+					// Intercambiar también las estadísticas correspondientes
+					int temp = iEstadisticas[j];
+					iEstadisticas[j] = iEstadisticas[j + 1];
+					iEstadisticas[j + 1] = temp;
+				}
+			}
+		}
+	}
+
+
+	if (DEPURAR == 1)
+		printf("Numero de elementos: %i\n", iNumElementos);
+
+}
+
+
+		
+/*****************************************************************************************************************
+	ListaCandidatas: Esta funcion recupera desde el diccionario las palabras validas y su peso
+	Regresa las palabras ordenadas por su peso
+	char	szPalabrasSugeridas[][TAMTOKEN],	//Lista de palabras clonadas
+	int		iNumSugeridas,						//Lista de palabras clonadas
+	char	szPalabras[][TAMTOKEN],				//Lista de palabras del diccionario
+	int		iEstadisticas[],					//Lista de las frecuencias de las palabras
+	int		iNumElementos,						//Numero de elementos en el diccionario
+	char	szListaFinal[][TAMTOKEN],			//Lista final de palabras a sugerir
+	int		iPeso[],							//Peso de las palabras en la lista final
+	int &	iNumLista)							//Numero de elementos en la szListaFinal
+******************************************************************************************************************/
+
+
+/*****************************************************************************************************************
+	ClonaPalabras: toma una palabra y obtiene todas las combinaciones y permutaciones requeridas por el metodo
+	char *	szPalabraLeida,						// Palabra a clonar
+	char	szPalabrasSugeridas[][TAMTOKEN], 	//Lista de palabras clonadas
+	int &	iNumSugeridas)						//Numero de elementos en la lista
+******************************************************************************************************************/
+void	ClonaPalabras(
+	char* szPalabraLeida,						// Palabra a clonar
+	char	szPalabrasSugeridas[][TAMTOKEN], 	//Lista de palabras clonadas
+	int& iNumSugeridas)						//Numero de elementos en la lista
+{
+
+	/************************* Codigo para cambiar un caracter de la cadena *************************************************/
+
+																				//32 con acentos y 27 sin acentos
+	char 	letras[] = { 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','ñ','o','p','q','r','s','t','u','v','w','x','y','z','á','é','í','ó','ú' };
+	int		longi;
+	int		j = 0;
+	int 	h;
+	int		i;
+	char	auxPalabraLeida[50];
+	int		iContadorPalabra = 0;
+	char	palabraEnSi[50];
+
+	iNumSugeridas = 0;
+
+	longi = strlen(szPalabraLeida);
+	if (DEPURAR == 1)
+		printf("La longitud es %d\n", longi);
+
+	strcpy_s(auxPalabraLeida, szPalabraLeida);
+	h = 0;
+
+	while (h < longi) {
+
+		//El 27 es el numero de letras del abcdario
+		for (int i = 0; i < 32; i++)
+		{
+
+			szPalabraLeida[h] = letras[i];
+			if (DEPURAR == 1)
+				printf("%s\n", szPalabraLeida);
+			strcpy_s(szPalabrasSugeridas[iNumSugeridas], szPalabraLeida);
+			iNumSugeridas++;
+
+
+		}
+
+		strcpy(szPalabraLeida, auxPalabraLeida);
+		h++;
+
+	}
+	if (DEPURAR == 1)
+		printf("\n%i\n", iNumSugeridas);
+
+
+
+
+	/************************* Codigo para eliminar un caracter de la cadena *************************************************/
+
+	for (int i = 0; i < longi; i++)
+	{
+		int contador = 0;
+		for (int j = 0; j < longi; j++)
+		{
+			if (j != i)
+			{
+				if (DEPURAR == 1)
+				{
+					printf("%c", szPalabraLeida[j]);  // Imprime la palabra resultante sin el carácter en la posición 'i'
+				}
+				szPalabrasSugeridas[iNumSugeridas][contador++] = szPalabraLeida[j];  // Almacena la palabra resultante
+			}
+		}
+		szPalabrasSugeridas[iNumSugeridas][contador] = '\0';  // Agrega el terminador nulo al final de la palabra
+		if (DEPURAR == 1)
+		{
+			printf("\n");
+		}
+
+		iNumSugeridas++;  // Incrementa el contador de palabras almacenadas
+	}
+
+	if (DEPURAR == 1)
+		printf("\n%i\n", iNumSugeridas);
+
+	/************************** Codigo para anidar un caracter de la cadena *************************************************/
+
+	char nuevaPalabra[50]; // +2 para la letra nueva y el terminador nulo
+	
+	for (int i = 0; i < longi + 1; i++)
+	{
+		for (int j = 0; j < 32; j++)
+		{
+
+			int k = 0;
+
+			// Agregar las letras de la palabra antes de la posición actual
+			for (; k < i; k++)
+			{
+				nuevaPalabra[k] = szPalabraLeida[k];
+			}
+
+			// Agregar la letra del diccionario en la posición actual
+			nuevaPalabra[k++] = letras[j];
+
+			// Agregar las letras restantes de la palabra
+			for (; k <= longi; k++)
+			{
+				nuevaPalabra[k] = szPalabraLeida[k - 1];
+			}
+
+			nuevaPalabra[longi + 1] = '\0';
+			if (DEPURAR == 1)
+				printf("%s\n", nuevaPalabra);
+			strcpy_s(szPalabrasSugeridas[iNumSugeridas], nuevaPalabra);
+			iNumSugeridas++;
+
+		}
+	}
+	if (DEPURAR == 1)
+		printf("\n%i\n", iNumSugeridas);
+
+	/************************** Codigo para cambiar de posiciones las letras ************************************************/
+
+
+	for (int i = 0; i < strlen(szPalabraLeida); i += 1)
+	{
+		if (i + 1 < strlen(szPalabraLeida))
+		{
+			// Intercambiar caracteres de a pares
+			char temp = szPalabraLeida[i];
+			szPalabraLeida[i] = szPalabraLeida[i + 1];
+			szPalabraLeida[i + 1] = temp;
+			if (DEPURAR == 1)
+				printf("%s\n", szPalabraLeida);
+			strcpy_s(szPalabrasSugeridas[iNumSugeridas], szPalabraLeida);
+			iNumSugeridas++;
+			strcpy(szPalabraLeida, auxPalabraLeida);
+		}
+	}
+
+
+	strcpy_s(palabraEnSi, szPalabraLeida);
+	strcpy_s(szPalabrasSugeridas[iNumSugeridas], palabraEnSi);
+	if (DEPURAR == 1)
+		printf("%s\n", palabraEnSi);
+	iNumSugeridas++;
+
+	if (DEPURAR == 1)
+		printf("\n%i\n", iNumSugeridas);
+	//strcpy(szPalabrasSugeridas[0], szPalabraLeida); //lo que sea que se capture, es sugerencia
+	//iNumSugeridas = 1;
+
+
+}
